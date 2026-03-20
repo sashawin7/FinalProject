@@ -1,0 +1,10 @@
+florida weekly arbovirus reports:
+https://www.floridahealth.gov/statistics-data/population-surveillance/arbovirus-surveillance/
+
+University of Florida -- FAWN
+    main data hub: https://fawn.ifas.ufl.edu/data/
+
+    daily summaries by year (all stations):
+    https://fawn.ifas.ufl.edu/data/fawnpub/daily_summaries/BY_YEAR/
+
+
