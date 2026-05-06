@@ -15,7 +15,8 @@ from pathlib import Path
 
 # === Configuration ===
 BASE_URL = "https://www.floridahealth.gov/statistics-data/population-surveillance/arbovirus-surveillance/"
-OUTPUT_DIR = Path(__file__).parent / "WeeklyReports"
+# Match extract_dengue_cases.py, which reads from workspace-level WeeklyReports.
+OUTPUT_DIR = Path(__file__).resolve().parent.parent.parent.parent / "WeeklyReports"
 HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
 DELAY_BETWEEN_DOWNLOADS = 0.5  # seconds between requests (be polite to the server)
 
@@ -64,8 +65,9 @@ def classify_link(url):
     """
     filename = url.split("/")[-1].lower()
 
-    # Pattern: fl-arb(b)ovirus-report_wN-YYYY.pdf  (2026 format)
-    m = re.search(r"fl-arb+ovirus-report_w(\d+)-(\d{4})", filename)
+    # Pattern: fl-arb(b)ovirus-report[-_]wN-YYYY.pdf  (2026 format)
+    # Also handles: ...-weekN-YYYY.pdf
+    m = re.search(r"fl-arb+ovirus-report[-_](?:w|week)(\d+)-(\d{4})", filename)
     if m:
         return (m.group(2), int(m.group(1)))
 

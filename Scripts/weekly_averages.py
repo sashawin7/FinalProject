@@ -20,7 +20,7 @@ import csv
 import logging
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
 
@@ -243,11 +243,12 @@ def write_output(
             days_to_first_sunday = (6 - jan1_weekday) % 7
             if week == 0:
                 week_start = jan1
+                week_end = jan1 + timedelta(days=max(days_to_first_sunday - 1, 0))
             else:
                 week_start = jan1 + __import__("datetime").timedelta(
                     days=days_to_first_sunday + (week - 1) * 7
                 )
-            week_end = week_start + __import__("datetime").timedelta(days=6)
+                week_end = week_start + timedelta(days=6)
 
             row_data: List = [
                 year,

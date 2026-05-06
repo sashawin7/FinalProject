@@ -94,6 +94,12 @@ def extract_dengue_data(pdf_path):
         "week_date_range": None,
     }
 
+    # Prefer cumulative counts for the same year as the report file.
+    report_year = None
+    m_year = re.search(r"(\d{4})_Week\d+", pdf_path.stem)
+    if m_year:
+        report_year = int(m_year.group(1))
+
     try:
         with pdfplumber.open(pdf_path) as pdf:
             # Get text from page 1 (dengue summary is always on page 1)
@@ -127,19 +133,29 @@ def extract_dengue_data(pdf_path):
 
             # --- Cumulative travel-associated dengue ---
             # Pattern: "In YYYY, NNN travel-associated dengue (fever) cases have been reported"
-            cum_travel_match = re.search(
-                r"In\s+\d{4},\s*([\d,]+)\s+travel-associated\s+dengue(?:\s+fever)?\s+cases?\s+have\s+been\s+reported",
-                text, re.IGNORECASE
-            )
-            if cum_travel_match:
-                result["cumulative_travel"] = parse_number(cum_travel_match.group(1))
+            cum_travel_matches = list(re.finditer(
+                r"In\s+(\d{4}),\s*([\d,]+)\s+travel(?:\s*-\s*|\s+)associated\s+dengue(?:\s+fever)?\s+cases?\s+have\s+been\s+reported",
+                text,
+                re.IGNORECASE,
+            ))
+            if cum_travel_matches:
+                chosen = None
+                if report_year is not None:
+                    for match in cum_travel_matches:
+                        if int(match.group(1)) == report_year:
+                            chosen = match
+                            break
+                if chosen is None:
+                    # Fallback: use the last match in the text (usually the most recent year).
+                    chosen = cum_travel_matches[-1]
+                result["cumulative_travel"] = parse_number(chosen.group(2))
 
             # --- Weekly locally acquired dengue ---
             # Pattern: "X case(s) of locally acquired dengue (fever) were/was reported this week"
             # Note: early 2022 uses "Dengue Fever Cases Acquired in Florida"
             weekly_local_match = re.search(
                 r"Dengue(?:\s+Fever)?\s+Cases Acquired in Florida:\s*"
-                r"([\w,\-]+(?:\s+[\w,\-]+)?)\s+cases?\s+of\s+locally\s+acquired\s+dengue(?:\s+fever)?\s+(?:were|was)\s+reported\s+this\s+week",
+                r"([\w,\-]+(?:\s+[\w,\-]+)?)\s+cases?\s+of\s+locally(?:\s*-\s*|\s+)acquired\s+dengue(?:\s+fever)?\s+(?:were|was)\s+reported\s+this\s+week",
                 text, re.IGNORECASE
             )
             if weekly_local_match:
@@ -151,17 +167,26 @@ def extract_dengue_data(pdf_path):
             # Multiple patterns observed:
             # "In YYYY, NNN cases of locally acquired dengue (fever) have been reported"
             # "positive samples from NNN humans"
-            cum_local_match = re.search(
-                r"Dengue(?:\s+Fever)?\s+Cases Acquired in Florida:.*?In\s+\d{4},\s*"
-                r"([\d,]+|[a-z\-]+(?:\s+[a-z\-]+)?)\s+cases?\s+of\s+locally\s+acquired\s+dengue(?:\s+fever)?\s+have\s+been\s+reported",
-                text, re.IGNORECASE
-            )
-            if cum_local_match:
-                result["cumulative_local"] = parse_number(cum_local_match.group(1))
+            cum_local_matches = list(re.finditer(
+                r"Dengue(?:\s+Fever)?\s+Cases Acquired in Florida:.*?In\s+(\d{4}),\s*"
+                r"([\d,]+|[a-z\-]+(?:\s+[a-z\-]+)?)\s+cases?\s+of\s+locally(?:\s*-\s*|\s+)acquired\s+dengue(?:\s+fever)?\s+have\s+been\s+reported",
+                text,
+                re.IGNORECASE,
+            ))
+            if cum_local_matches:
+                chosen = None
+                if report_year is not None:
+                    for match in cum_local_matches:
+                        if int(match.group(1)) == report_year:
+                            chosen = match
+                            break
+                if chosen is None:
+                    chosen = cum_local_matches[-1]
+                result["cumulative_local"] = parse_number(chosen.group(2))
             else:
                 # Some reports say "no cases of locally acquired dengue (fever) have been reported"
                 no_local_match = re.search(
-                    r"Dengue(?:\s+Fever)?\s+Cases Acquired in Florida:.*?no cases of locally acquired dengue(?:\s+fever)? have been reported",
+                    r"Dengue(?:\s+Fever)?\s+Cases Acquired in Florida:.*?no cases of locally(?:\s*-\s*|\s+)acquired dengue(?:\s+fever)? have been reported",
                     text, re.IGNORECASE
                 )
                 if no_local_match:
